@@ -101,7 +101,7 @@ export function Header() {
           <Link
             to="/"
             className={`shrink-0 px-3 h-8 inline-flex items-center rounded-full text-sm font-medium transition-colors ${
-              location.pathname === "/" && !location.search?.includes("category")
+              location.pathname === "/"
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:text-foreground"
             }`}
