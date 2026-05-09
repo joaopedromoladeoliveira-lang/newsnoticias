@@ -57,21 +57,27 @@ export type Database = {
           article_id: string
           content: string
           created_at: string
+          flag_reason: string | null
           id: string
+          status: Database["public"]["Enums"]["comment_status"]
           user_id: string
         }
         Insert: {
           article_id: string
           content: string
           created_at?: string
+          flag_reason?: string | null
           id?: string
+          status?: Database["public"]["Enums"]["comment_status"]
           user_id: string
         }
         Update: {
           article_id?: string
           content?: string
           created_at?: string
+          flag_reason?: string | null
           id?: string
+          status?: Database["public"]["Enums"]["comment_status"]
           user_id?: string
         }
         Relationships: [
@@ -412,6 +418,7 @@ export type Database = {
         | "cripto"
         | "viral"
       article_status: "draft" | "published" | "archived"
+      comment_status: "pending" | "approved" | "rejected"
       wallet_tx_status: "pending" | "confirmed" | "paid" | "rejected"
       wallet_tx_type:
         | "credit_views"
@@ -558,6 +565,7 @@ export const Constants = {
         "viral",
       ],
       article_status: ["draft", "published", "archived"],
+      comment_status: ["pending", "approved", "rejected"],
       wallet_tx_status: ["pending", "confirmed", "paid", "rejected"],
       wallet_tx_type: [
         "credit_views",
