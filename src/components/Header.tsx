@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Search, PenSquare, LogIn, User, LogOut, Flame } from "lucide-react";
+import { Search, PenSquare, LogIn, User, LogOut, Flame, ShieldCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useIsAdmin } from "@/hooks/use-role";
 
 const CATEGORIES = [
   { slug: "ia", label: "IA" },
@@ -15,6 +16,7 @@ const CATEGORIES = [
 
 export function Header() {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const navigate = useNavigate();
   const location = useLocation();
   const [q, setQ] = useState("");
@@ -67,6 +69,15 @@ export function Header() {
                 >
                   <User className="h-4 w-4" />
                 </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-muted hover:bg-secondary transition-colors text-primary"
+                    title="Admin"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                  </Link>
+                )}
                 <button
                   onClick={() => signOut()}
                   className="inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-muted transition-colors text-muted-foreground"

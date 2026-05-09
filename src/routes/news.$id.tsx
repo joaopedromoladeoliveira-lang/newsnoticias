@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ExternalLink, Clock, Share2, Bookmark, Heart } from "lucide-react";
 import { fetchNewsById } from "@/lib/news.functions";
 import { AdSlot } from "@/components/AdSlot";
+import { CommentsSection } from "@/components/CommentsSection";
 import { supabase } from "@/integrations/supabase/client";
 import { useViewTracking } from "@/hooks/use-view-tracking";
 import { toast } from "sonner";
@@ -140,6 +141,9 @@ function NewsDetail() {
         </div>
 
         <div className="my-10"><AdSlot slot="article_bottom" format="card" /></div>
+
+        {/* Comentários só para artigos internos (uuid). Notícias externas não têm article_id. */}
+        {/^[0-9a-f-]{36}$/i.test(id) && <CommentsSection articleId={id} />}
       </article>
     </main>
   );

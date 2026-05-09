@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { Flame, Mail, Lock } from "lucide-react";
 
@@ -46,7 +47,20 @@ function LoginPage() {
   };
 
   const google = async () => {
-    toast.info("Login com Google: ative em Configurações > Auth para habilitar");
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: `${window.location.origin}/dashboard`,
+      });
+      if (result.error) {
+        toast.error((result.error as Error).message ?? "Falha no login com Google");
+        return;
+      }
+      if (result.redirected) return;
+      navigate({ to: "/dashboard" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
