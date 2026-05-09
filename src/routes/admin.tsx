@@ -58,7 +58,7 @@ function AdminLayout() {
           return (
             <Link
               key={n.to}
-              to={n.to}
+              to={n.to as any}
               className={`shrink-0 inline-flex items-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-colors ${
                 active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
               }`}
