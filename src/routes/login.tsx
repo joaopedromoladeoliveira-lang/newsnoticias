@@ -46,14 +46,7 @@ function LoginPage() {
   };
 
   const google = async () => {
-    try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/dashboard",
-      });
-      if (result.error) toast.error("Falha no login com Google");
-    } catch {
-      toast.error("Login com Google indisponível");
-    }
+    toast.info("Login com Google: ative em Configurações > Auth para habilitar");
   };
 
   return (
