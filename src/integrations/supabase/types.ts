@@ -362,33 +362,51 @@ export type Database = {
           amount_brl: number
           created_at: string
           description: string | null
+          gateway_provider: string | null
+          gateway_status: string | null
+          gateway_tx_id: string | null
           id: string
+          pix_copy_paste: string | null
           pix_key: string | null
+          pix_qrcode: string | null
           reference_id: string | null
           status: Database["public"]["Enums"]["wallet_tx_status"]
           type: Database["public"]["Enums"]["wallet_tx_type"]
+          updated_at: string
           user_id: string
         }
         Insert: {
           amount_brl: number
           created_at?: string
           description?: string | null
+          gateway_provider?: string | null
+          gateway_status?: string | null
+          gateway_tx_id?: string | null
           id?: string
+          pix_copy_paste?: string | null
           pix_key?: string | null
+          pix_qrcode?: string | null
           reference_id?: string | null
           status?: Database["public"]["Enums"]["wallet_tx_status"]
           type: Database["public"]["Enums"]["wallet_tx_type"]
+          updated_at?: string
           user_id: string
         }
         Update: {
           amount_brl?: number
           created_at?: string
           description?: string | null
+          gateway_provider?: string | null
+          gateway_status?: string | null
+          gateway_tx_id?: string | null
           id?: string
+          pix_copy_paste?: string | null
           pix_key?: string | null
+          pix_qrcode?: string | null
           reference_id?: string | null
           status?: Database["public"]["Enums"]["wallet_tx_status"]
           type?: Database["public"]["Enums"]["wallet_tx_type"]
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
