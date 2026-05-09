@@ -84,7 +84,7 @@ export const requestPixPayout = createServerFn({ method: "POST" })
       const body = await res.json().catch(() => ({}));
       if (!res.ok || body?.success === false) {
         await supabaseAdmin.from("wallet_transactions").update({
-          status: "failed", gateway_status: `error_${res.status}`, description: `Falha NBPay: ${JSON.stringify(body).slice(0, 200)}`,
+          status: "rejected", gateway_status: `error_${res.status}`, description: `Falha NBPay: ${JSON.stringify(body).slice(0, 200)}`,
         }).eq("id", tx.id);
         return { ok: false, error: body?.message ?? `Erro NBPay (${res.status})` };
       }
@@ -96,7 +96,7 @@ export const requestPixPayout = createServerFn({ method: "POST" })
       return { ok: true, status: w.status ?? "processing", txId: tx.id };
     } catch (e: any) {
       await supabaseAdmin.from("wallet_transactions").update({
-        status: "failed", gateway_status: "exception", description: String(e?.message ?? e).slice(0, 200),
+        status: "rejected", gateway_status: "exception", description: String(e?.message ?? e).slice(0, 200),
       }).eq("id", tx.id);
       return { ok: false, error: "Falha ao contatar NBPay" };
     }
@@ -121,7 +121,7 @@ export const refreshPayoutStatus = createServerFn({ method: "POST" })
     const status = remote.status ?? "unknown";
     let localStatus = tx.status;
     if (status === "completed" || status === "paid") localStatus = "paid";
-    else if (status === "failed" || status === "cancelled" || status === "expired") localStatus = "failed";
+    else if (status === "failed" || status === "cancelled" || status === "expired") localStatus = "rejected";
     await supabaseAdmin.from("wallet_transactions")
       .update({ gateway_status: status, status: localStatus, updated_at: new Date().toISOString() })
       .eq("id", tx.id);
