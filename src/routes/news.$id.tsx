@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect } from "react";
 import { ArrowLeft, ExternalLink, Clock, Share2, Bookmark, Heart } from "lucide-react";
 import { fetchNewsById } from "@/lib/news.functions";
 import { AdSlot } from "@/components/AdSlot";
 import { supabase } from "@/integrations/supabase/client";
+import { useViewTracking } from "@/hooks/use-view-tracking";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/news/$id")({
@@ -22,11 +22,8 @@ function NewsDetail() {
 
   const item = data?.item;
 
-  // Track real view
-  useEffect(() => {
-    if (!item) return;
-    supabase.from("article_views").insert({ external_url: item.link });
-  }, [item]);
+  // Real view + dwell-time tracking
+  useViewTracking({ externalUrl: item?.link ?? null });
 
   if (isLoading) {
     return (
