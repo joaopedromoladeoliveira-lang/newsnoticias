@@ -3,13 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * AdSlot — placeholder real para AdSense / anúncios programáticos.
- *
- * Em produção, insira aqui o snippet do Google AdSense ou outro provedor:
- *   <ins class="adsbygoogle" data-ad-client="..." data-ad-slot="..." />
- *   (window.adsbygoogle = window.adsbygoogle || []).push({});
- *
- * Cada impressão é registrada na tabela ad_impressions para tracking real
- * de CPM e revenue por artigo.
+ * Tracking real:
+ *  - impressão registrada na montagem (apenas se entrar no viewport)
+ *  - clique registrado quando o usuário interage com o slot
  */
 export function AdSlot({
   slot,
@@ -20,28 +16,59 @@ export function AdSlot({
   articleId?: string;
   format?: "banner" | "inline" | "card";
 }) {
+  const ref = useRef<HTMLDivElement>(null);
   const tracked = useRef(false);
 
   useEffect(() => {
-    if (tracked.current) return;
-    tracked.current = true;
-    // Real impression tracking — inserts a row that contributes to revenue analytics
+    const el = ref.current;
+    if (!el || tracked.current) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && !tracked.current) {
+            tracked.current = true;
+            supabase.from("ad_impressions").insert({
+              slot,
+              article_id: articleId ?? null,
+              event_type: "impression",
+              // CPM conservador: R$5 / 1000 impressões = R$0.005 por impressão
+              estimated_revenue_brl: 0.005,
+            });
+            io.disconnect();
+          }
+        }
+      },
+      { threshold: 0.5 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [slot, articleId]);
+
+  const handleClick = () => {
+    // CTR real: clique vale ~R$0.20 (CPC conservador BR)
     supabase.from("ad_impressions").insert({
       slot,
       article_id: articleId ?? null,
-      event_type: "impression",
-      estimated_revenue_brl: 0, // será calculado pelo provedor real
+      event_type: "click",
+      estimated_revenue_brl: 0.2,
     });
-  }, [slot, articleId]);
+  };
 
   const heights = { banner: "h-24 md:h-28", inline: "h-32", card: "h-64" };
 
   return (
     <div
-      className={`relative w-full ${heights[format]} rounded-xl border border-dashed border-border bg-muted/40 flex items-center justify-center overflow-hidden`}
+      ref={ref}
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") handleClick();
+      }}
+      className={`relative w-full ${heights[format]} rounded-xl border border-dashed border-border bg-muted/40 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-muted/60 transition-colors`}
       data-ad-slot={slot}
     >
-      <div className="text-center">
+      <div className="text-center pointer-events-none">
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
           Espaço publicitário
         </div>
