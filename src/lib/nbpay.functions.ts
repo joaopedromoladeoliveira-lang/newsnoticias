@@ -25,7 +25,8 @@ async function computeBalance(userId: string): Promise<number> {
   let bal = 0;
   for (const t of data ?? []) {
     const v = Number(t.amount_brl);
-    if (t.type === "earning" && t.status === "confirmed") bal += v;
+    const credit = t.type === "credit_ads" || t.type === "credit_sponsor" || t.type === "credit_views" || t.type === "adjustment";
+    if (credit && t.status === "confirmed") bal += v;
     if (t.type === "payout_pix" && (t.status === "pending" || t.status === "confirmed" || t.status === "paid")) bal -= v;
   }
   return bal;
