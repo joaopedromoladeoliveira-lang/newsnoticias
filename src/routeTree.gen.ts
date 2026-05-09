@@ -12,9 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WriteRouteImport } from './routes/write'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as NewsIdRouteImport } from './routes/news.$id'
 import { Route as CategoryCatRouteImport } from './routes/category.$cat'
+import { Route as AdminCommentsRouteImport } from './routes/admin.comments'
+import { Route as AdminArticlesRouteImport } from './routes/admin.articles'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
+import { Route as AdminAdsRouteImport } from './routes/admin.ads'
 
 const WriteRoute = WriteRouteImport.update({
   id: '/write',
@@ -31,10 +37,20 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const NewsIdRoute = NewsIdRouteImport.update({
   id: '/news/$id',
@@ -46,55 +62,116 @@ const CategoryCatRoute = CategoryCatRouteImport.update({
   path: '/category/$cat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCommentsRoute = AdminCommentsRouteImport.update({
+  id: '/comments',
+  path: '/comments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminArticlesRoute = AdminArticlesRouteImport.update({
+  id: '/articles',
+  path: '/articles',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAdsRoute = AdminAdsRouteImport.update({
+  id: '/ads',
+  path: '/ads',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/write': typeof WriteRoute
+  '/admin/ads': typeof AdminAdsRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/articles': typeof AdminArticlesRoute
+  '/admin/comments': typeof AdminCommentsRoute
   '/category/$cat': typeof CategoryCatRoute
   '/news/$id': typeof NewsIdRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/write': typeof WriteRoute
+  '/admin/ads': typeof AdminAdsRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/articles': typeof AdminArticlesRoute
+  '/admin/comments': typeof AdminCommentsRoute
   '/category/$cat': typeof CategoryCatRoute
   '/news/$id': typeof NewsIdRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/write': typeof WriteRoute
+  '/admin/ads': typeof AdminAdsRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/articles': typeof AdminArticlesRoute
+  '/admin/comments': typeof AdminCommentsRoute
   '/category/$cat': typeof CategoryCatRoute
   '/news/$id': typeof NewsIdRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/dashboard'
     | '/login'
     | '/write'
+    | '/admin/ads'
+    | '/admin/analytics'
+    | '/admin/articles'
+    | '/admin/comments'
     | '/category/$cat'
     | '/news/$id'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login' | '/write' | '/category/$cat' | '/news/$id'
-  id:
-    | '__root__'
+  to:
     | '/'
     | '/dashboard'
     | '/login'
     | '/write'
+    | '/admin/ads'
+    | '/admin/analytics'
+    | '/admin/articles'
+    | '/admin/comments'
     | '/category/$cat'
     | '/news/$id'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/dashboard'
+    | '/login'
+    | '/write'
+    | '/admin/ads'
+    | '/admin/analytics'
+    | '/admin/articles'
+    | '/admin/comments'
+    | '/category/$cat'
+    | '/news/$id'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   WriteRoute: typeof WriteRoute
@@ -125,12 +202,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/news/$id': {
       id: '/news/$id'
@@ -146,11 +237,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategoryCatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/comments': {
+      id: '/admin/comments'
+      path: '/comments'
+      fullPath: '/admin/comments'
+      preLoaderRoute: typeof AdminCommentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/articles': {
+      id: '/admin/articles'
+      path: '/articles'
+      fullPath: '/admin/articles'
+      preLoaderRoute: typeof AdminArticlesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ads': {
+      id: '/admin/ads'
+      path: '/ads'
+      fullPath: '/admin/ads'
+      preLoaderRoute: typeof AdminAdsRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminAdsRoute: typeof AdminAdsRoute
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminArticlesRoute: typeof AdminArticlesRoute
+  AdminCommentsRoute: typeof AdminCommentsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAdsRoute: AdminAdsRoute,
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminArticlesRoute: AdminArticlesRoute,
+  AdminCommentsRoute: AdminCommentsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   WriteRoute: WriteRoute,
