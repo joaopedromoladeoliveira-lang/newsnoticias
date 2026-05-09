@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NewsIdRouteImport } from './routes/news.$id'
 import { Route as CategoryCatRouteImport } from './routes/category.$cat'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsIdRoute = NewsIdRouteImport.update({
+  id: '/news/$id',
+  path: '/news/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategoryCatRoute = CategoryCatRouteImport.update({
@@ -26,27 +32,31 @@ const CategoryCatRoute = CategoryCatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/category/$cat': typeof CategoryCatRoute
+  '/news/$id': typeof NewsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/category/$cat': typeof CategoryCatRoute
+  '/news/$id': typeof NewsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/category/$cat': typeof CategoryCatRoute
+  '/news/$id': typeof NewsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/category/$cat'
+  fullPaths: '/' | '/category/$cat' | '/news/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/category/$cat'
-  id: '__root__' | '/' | '/category/$cat'
+  to: '/' | '/category/$cat' | '/news/$id'
+  id: '__root__' | '/' | '/category/$cat' | '/news/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CategoryCatRoute: typeof CategoryCatRoute
+  NewsIdRoute: typeof NewsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/$id': {
+      id: '/news/$id'
+      path: '/news/$id'
+      fullPath: '/news/$id'
+      preLoaderRoute: typeof NewsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/category/$cat': {
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CategoryCatRoute: CategoryCatRoute,
+  NewsIdRoute: NewsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
