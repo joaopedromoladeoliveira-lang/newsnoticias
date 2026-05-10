@@ -71,9 +71,11 @@ function AdminArticles() {
           status: "confirmed",
           amount_brl: amount,
           description: `+${delta} views manuais • artigo ${row.id}`,
+          gateway_provider: "nbpay",
+          gateway_status: "credited",
         });
         if (wErr) toast.error(`Views ok, mas saldo falhou: ${wErr.message}`);
-        else toast.success(`+${delta} views • +R$ ${amount.toFixed(2)} no saldo`);
+        else toast.success(`+${delta} views • +R$ ${amount.toFixed(2)} acumulados na NBPay`);
       }
     } else {
       toast.success("Views atualizadas");
