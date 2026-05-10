@@ -120,7 +120,9 @@ function AdminArticles() {
                       <option value="archived">archived</option>
                     </select>
                   </td>
-                  <td className="p-3 text-right tabular-nums">{r.views_count.toLocaleString("pt-BR")}</td>
+                  <td className="p-3 text-right tabular-nums">
+                    <ViewsEditor row={r} onSave={saveViews} />
+                  </td>
                   <td className="p-3 text-right tabular-nums">{r.likes_count.toLocaleString("pt-BR")}</td>
                   <td className="p-3 text-right">
                     <button onClick={() => remove(r.id)} className="text-muted-foreground hover:text-destructive">
