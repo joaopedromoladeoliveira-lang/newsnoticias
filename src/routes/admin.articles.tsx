@@ -56,6 +56,31 @@ function AdminArticles() {
     else { toast.success("Atualizado"); setRows((r) => r.map((x) => (x.id === id ? { ...x, status: newStatus } : x))); }
   };
 
+  const saveViews = async (row: Row, newViews: number) => {
+    if (!Number.isFinite(newViews) || newViews < 0) { toast.error("Valor inválido"); return; }
+    const delta = Math.floor(newViews) - row.views_count;
+    const { error } = await supabase.from("articles").update({ views_count: Math.floor(newViews) }).eq("id", row.id);
+    if (error) { toast.error(error.message); return; }
+    if (delta > 0) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const amount = delta * 2;
+        const { error: wErr } = await supabase.from("wallet_transactions").insert({
+          user_id: user.id,
+          type: "credit_views",
+          status: "confirmed",
+          amount_brl: amount,
+          description: `+${delta} views manuais • artigo ${row.id}`,
+        });
+        if (wErr) toast.error(`Views ok, mas saldo falhou: ${wErr.message}`);
+        else toast.success(`+${delta} views • +R$ ${amount.toFixed(2)} no saldo`);
+      }
+    } else {
+      toast.success("Views atualizadas");
+    }
+    setRows((r) => r.map((x) => (x.id === row.id ? { ...x, views_count: Math.floor(newViews) } : x)));
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
