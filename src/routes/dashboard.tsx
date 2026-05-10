@@ -36,20 +36,28 @@ function Dashboard() {
   const refreshFn = useServerFn(refreshPayoutStatus);
 
   async function load() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { window.location.href = "/login"; return; }
-    setUserEmail(user.email ?? "");
-    const [{ count: articles }, { data: myArticles }, w] = await Promise.all([
-      supabase.from("articles").select("id", { count: "exact", head: true }).eq("author_id", user.id),
-      supabase.from("articles").select("id, views_count, likes_count").eq("author_id", user.id),
-      fetchWallet({}),
-    ]);
-    const views = (myArticles ?? []).reduce((s, a) => s + (a.views_count ?? 0), 0);
-    const likes = (myArticles ?? []).reduce((s, a) => s + (a.likes_count ?? 0), 0);
-    setStats({ articles: articles ?? 0, views, likes });
-    const ww: any = w ?? {};
-    setWallet({ balance: Number(ww.balance ?? 0), transactions: Array.isArray(ww.transactions) ? ww.transactions : [] });
-    setLoading(false);
+    try {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token || !session.user) { window.location.href = "/login"; return; }
+      const headers = { Authorization: `Bearer ${session.access_token}` };
+      const user = session.user;
+      setUserEmail(user.email ?? "");
+      const [{ count: articles }, { data: myArticles }, w] = await Promise.all([
+        supabase.from("articles").select("id", { count: "exact", head: true }).eq("author_id", user.id),
+        supabase.from("articles").select("id, views_count, likes_count").eq("author_id", user.id),
+        fetchWallet({ headers }),
+      ]);
+      const views = (myArticles ?? []).reduce((s, a) => s + (a.views_count ?? 0), 0);
+      const likes = (myArticles ?? []).reduce((s, a) => s + (a.likes_count ?? 0), 0);
+      setStats({ articles: articles ?? 0, views, likes });
+      const ww: any = w ?? {};
+      setWallet({ balance: Number(ww.balance ?? 0), transactions: Array.isArray(ww.transactions) ? ww.transactions : [] });
+    } catch (e: any) {
+      setFeedback({ ok: false, msg: e?.message ?? "Erro ao carregar o dashboard" });
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
@@ -59,7 +67,12 @@ function Dashboard() {
     setSubmitting(true);
     setFeedback(null);
     try {
-      const res = await payoutFn({ data: { amountBrl: Number(amount), pixKey: pixKey.trim() } });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { window.location.href = "/login"; return; }
+      const res = await payoutFn({
+        data: { amountBrl: Number(amount), pixKey: pixKey.trim() },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
       if (res.ok) {
         setFeedback({ ok: true, msg: `Saque solicitado • status: ${res.status}` });
         setPixKey("");
@@ -75,7 +88,9 @@ function Dashboard() {
   }
 
   async function refresh(txId: string) {
-    await refreshFn({ data: { txId } });
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) { window.location.href = "/login"; return; }
+    await refreshFn({ data: { txId }, headers: { Authorization: `Bearer ${session.access_token}` } });
     await load();
   }
 
