@@ -47,7 +47,8 @@ function Dashboard() {
     const views = (myArticles ?? []).reduce((s, a) => s + (a.views_count ?? 0), 0);
     const likes = (myArticles ?? []).reduce((s, a) => s + (a.likes_count ?? 0), 0);
     setStats({ articles: articles ?? 0, views, likes });
-    setWallet(w as any);
+    const ww: any = w ?? {};
+    setWallet({ balance: Number(ww.balance ?? 0), transactions: Array.isArray(ww.transactions) ? ww.transactions : [] });
     setLoading(false);
   }
 
