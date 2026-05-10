@@ -154,3 +154,29 @@ function Select({
     </label>
   );
 }
+
+function ViewsEditor({ row, onSave }: { row: Row; onSave: (row: Row, n: number) => void | Promise<void> }) {
+  const [val, setVal] = useState<string>(String(row.views_count));
+  useEffect(() => { setVal(String(row.views_count)); }, [row.views_count]);
+  const dirty = Number(val) !== row.views_count;
+  return (
+    <div className="inline-flex items-center gap-1">
+      <input
+        type="number"
+        min={0}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-24 h-7 px-2 text-right text-xs rounded bg-input border border-border tabular-nums"
+      />
+      {dirty && (
+        <button
+          onClick={() => onSave(row, Number(val))}
+          className="text-xs px-2 h-7 rounded bg-primary text-primary-foreground font-semibold"
+          title="Salvar (cada nova view = +R$ 2,00 no saldo)"
+        >
+          Salvar
+        </button>
+      )}
+    </div>
+  );
+}
