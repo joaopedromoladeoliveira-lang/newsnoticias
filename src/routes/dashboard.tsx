@@ -97,7 +97,7 @@ function Dashboard() {
         <StatCard icon={<FileText />} label="Seus artigos" value={stats.articles.toString()} />
         <StatCard icon={<Eye />} label="Visualizações" value={stats.views.toLocaleString("pt-BR")} />
         <StatCard icon={<Heart />} label="Curtidas" value={stats.likes.toLocaleString("pt-BR")} />
-        <StatCard icon={<Wallet />} label="Saldo (R$)" value={wallet.balance.toFixed(2)} highlight />
+        <StatCard icon={<Wallet />} label="Saldo (R$)" value={Number(wallet?.balance ?? 0).toFixed(2)} highlight />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2 mb-10">
