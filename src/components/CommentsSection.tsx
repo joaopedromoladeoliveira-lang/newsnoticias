@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { postComment } from "@/lib/comments.functions";
+import { authErrorMessage, getAuthenticatedHeaders } from "@/lib/authenticated-server-fn";
 import { MessageCircle, Send, ShieldAlert, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
@@ -80,7 +81,8 @@ export function CommentsSection({ articleId }: { articleId: string }) {
     if (content.length < 2) return;
     setSending(true);
     try {
-      const r: any = await post({ data: { articleId, content } });
+      const { headers } = await getAuthenticatedHeaders();
+      const r: any = await post({ data: { articleId, content }, headers });
       if (!r.ok) {
         toast.error(r.error || "Não foi possível publicar");
         return;
@@ -92,7 +94,7 @@ export function CommentsSection({ articleId }: { articleId: string }) {
         toast.success("Comentário publicado");
       }
     } catch (err: any) {
-      toast.error(err?.message ?? "Erro ao enviar");
+      toast.error(authErrorMessage(err, "Erro ao enviar"));
     } finally {
       setSending(false);
     }

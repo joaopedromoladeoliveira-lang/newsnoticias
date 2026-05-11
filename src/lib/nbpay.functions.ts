@@ -127,3 +127,50 @@ export const refreshPayoutStatus = createServerFn({ method: "POST" })
       .eq("id", tx.id);
     return { ok: true, status, localStatus };
   });
+
+export const updateArticleViewsAndCredit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ articleId: z.string().uuid(), views: z.number().int().min(0) }).parse(d)
+  )
+  .handler(async ({ data, context }) => {
+    const { data: role } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", context.userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (!role) return { ok: false, error: "Acesso restrito" };
+
+    const { data: article, error: readErr } = await supabaseAdmin
+      .from("articles")
+      .select("views_count")
+      .eq("id", data.articleId)
+      .single();
+    if (readErr || !article) return { ok: false, error: readErr?.message ?? "Artigo não encontrado" };
+
+    const delta = data.views - Number(article.views_count ?? 0);
+    const { error: updateErr } = await supabaseAdmin
+      .from("articles")
+      .update({ views_count: data.views })
+      .eq("id", data.articleId);
+    if (updateErr) return { ok: false, error: updateErr.message };
+
+    if (delta > 0) {
+      const amount = delta * 2;
+      const { error: walletErr } = await supabaseAdmin.from("wallet_transactions").insert({
+        user_id: context.userId,
+        type: "credit_views",
+        status: "confirmed",
+        amount_brl: amount,
+        description: `+${delta} views manuais • artigo ${data.articleId}`,
+        reference_id: data.articleId,
+        gateway_provider: "nbpay",
+        gateway_status: "credited",
+      });
+      if (walletErr) return { ok: false, error: `Views ok, mas saldo falhou: ${walletErr.message}` };
+      return { ok: true, delta, amount };
+    }
+
+    return { ok: true, delta, amount: 0 };
+  });

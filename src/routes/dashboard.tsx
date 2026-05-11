@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Wallet, Eye, Heart, FileText, TrendingUp, Send, RefreshCw, Loader2 } from "lucide-react";
 import { getWalletSummary, requestPixPayout, refreshPayoutStatus } from "@/lib/nbpay.functions";
+import { authErrorMessage, getAuthenticatedHeaders } from "@/lib/authenticated-server-fn";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — NewsFlow AI" }] }),
@@ -38,9 +39,8 @@ function Dashboard() {
   async function load() {
     try {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token || !session.user) { window.location.href = "/login"; return; }
-      const headers = { Authorization: `Bearer ${session.access_token}` };
+      const { headers, session } = await getAuthenticatedHeaders();
+      if (!session.user) { window.location.href = "/login"; return; }
       const user = session.user;
       setUserEmail(user.email ?? "");
       const [{ count: articles }, { data: myArticles }, w] = await Promise.all([
@@ -54,7 +54,8 @@ function Dashboard() {
       const ww: any = w ?? {};
       setWallet({ balance: Number(ww.balance ?? 0), transactions: Array.isArray(ww.transactions) ? ww.transactions : [] });
     } catch (e: any) {
-      setFeedback({ ok: false, msg: e?.message ?? "Erro ao carregar o dashboard" });
+      if (e?.message?.includes("Sessão expirada") || e instanceof Response && e.status === 401) window.location.href = "/login";
+      setFeedback({ ok: false, msg: authErrorMessage(e, "Erro ao carregar o dashboard") });
     } finally {
       setLoading(false);
     }
@@ -67,11 +68,10 @@ function Dashboard() {
     setSubmitting(true);
     setFeedback(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) { window.location.href = "/login"; return; }
+      const { headers } = await getAuthenticatedHeaders();
       const res = await payoutFn({
         data: { amountBrl: Number(amount), pixKey: pixKey.trim() },
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers,
       });
       if (res.ok) {
         setFeedback({ ok: true, msg: `Saque solicitado • status: ${res.status}` });
@@ -81,16 +81,16 @@ function Dashboard() {
         setFeedback({ ok: false, msg: res.error ?? "Erro" });
       }
     } catch (e: any) {
-      setFeedback({ ok: false, msg: e?.message ?? "Erro de rede" });
+      if (e?.message?.includes("Sessão expirada") || e instanceof Response && e.status === 401) window.location.href = "/login";
+      setFeedback({ ok: false, msg: authErrorMessage(e, "Erro de rede") });
     } finally {
       setSubmitting(false);
     }
   }
 
   async function refresh(txId: string) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) { window.location.href = "/login"; return; }
-    await refreshFn({ data: { txId }, headers: { Authorization: `Bearer ${session.access_token}` } });
+    const { headers } = await getAuthenticatedHeaders();
+    await refreshFn({ data: { txId }, headers });
     await load();
   }
 
