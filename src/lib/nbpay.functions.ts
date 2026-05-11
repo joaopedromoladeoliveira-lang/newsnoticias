@@ -92,14 +92,14 @@ async function fetchNbpayAccountBalance(): Promise<number | null> {
 export const getWalletSummary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const balance = await computeBalance(context.userId);
+    const { balance, nbpayOnly } = await computeNbpayBalance(context.userId);
     const { data: txs } = await supabaseAdmin
       .from("wallet_transactions")
-      .select("id, amount_brl, type, status, gateway_status, pix_key, description, created_at")
+      .select("id, amount_brl, type, status, gateway_status, gateway_provider, pix_key, description, created_at")
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(20);
-    return { balance, transactions: txs ?? [] };
+    return { balance, nbpayBalance: nbpayOnly, transactions: txs ?? [] };
   });
 
 export const requestPixPayout = createServerFn({ method: "POST" })
@@ -111,12 +111,23 @@ export const requestPixPayout = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ data, context }) => {
-    const balance = await computeBalance(context.userId);
+    const { balance, nbpayOnly } = await computeNbpayBalance(context.userId);
+    log("payout:start", { userId: context.userId, amount: data.amountBrl, balance, nbpayOnly });
+
+    if (nbpayOnly < data.amountBrl) {
+      return { ok: false, error: `Saldo NBPay insuficiente. Disponível: R$ ${nbpayOnly.toFixed(2)}` };
+    }
     if (balance < data.amountBrl) {
       return { ok: false, error: `Saldo insuficiente. Disponível: R$ ${balance.toFixed(2)}` };
     }
 
-    // Create pending row
+    // Optional account-side validation
+    const accountBal = await fetchNbpayAccountBalance();
+    log("payout:account-balance", { accountBal });
+    if (accountBal !== null && accountBal < data.amountBrl) {
+      return { ok: false, error: `Conta NBPay sem saldo suficiente (R$ ${accountBal.toFixed(2)})` };
+    }
+
     const { data: tx, error: txErr } = await supabaseAdmin
       .from("wallet_transactions")
       .insert({
@@ -127,36 +138,67 @@ export const requestPixPayout = createServerFn({ method: "POST" })
         pix_key: data.pixKey,
         description: "Saque PIX via NBPay",
         gateway_provider: "nbpay",
+        gateway_status: "submitting",
       })
       .select("id")
       .single();
     if (txErr || !tx) return { ok: false, error: txErr?.message ?? "Erro ao registrar saque" };
 
-    try {
-      const res = await fetch(`${NBPAY_BASE}/cashout/pix`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ amount: data.amountBrl, pix_key: data.pixKey }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || body?.success === false) {
-        await supabaseAdmin.from("wallet_transactions").update({
-          status: "rejected", gateway_status: `error_${res.status}`, description: `Falha NBPay: ${JSON.stringify(body).slice(0, 200)}`,
-        }).eq("id", tx.id);
-        return { ok: false, error: body?.message ?? `Erro NBPay (${res.status})` };
-      }
-      const w = body.withdrawal ?? body.data ?? {};
+    const r = await fetchWithRetry(
+      `${NBPAY_BASE}/cashout/pix`,
+      { method: "POST", headers: authHeaders(), body: JSON.stringify({ amount: data.amountBrl, pix_key: data.pixKey }) },
+      "payout:create",
+      3,
+    );
+
+    if (!r.ok || r.body?.success === false) {
       await supabaseAdmin.from("wallet_transactions").update({
-        gateway_tx_id: String(w.id ?? w.uuid ?? w.transaction_uuid ?? ""),
-        gateway_status: w.status ?? "processing",
+        status: "rejected",
+        gateway_status: `error_${r.status}`,
+        description: `Falha NBPay: ${JSON.stringify(r.body ?? r.error ?? {}).slice(0, 200)}`,
       }).eq("id", tx.id);
-      return { ok: true, status: w.status ?? "processing", txId: tx.id };
-    } catch (e: any) {
-      await supabaseAdmin.from("wallet_transactions").update({
-        status: "rejected", gateway_status: "exception", description: String(e?.message ?? e).slice(0, 200),
-      }).eq("id", tx.id);
-      return { ok: false, error: "Falha ao contatar NBPay" };
+      log("payout:fail", { txId: tx.id, status: r.status, body: r.body });
+      return { ok: false, error: r.body?.message ?? r.error ?? `Erro NBPay (${r.status})` };
     }
+
+    const w = r.body.withdrawal ?? r.body.data ?? r.body ?? {};
+    const gatewayId = String(w.id ?? w.uuid ?? w.transaction_uuid ?? "");
+    await supabaseAdmin.from("wallet_transactions").update({
+      gateway_tx_id: gatewayId,
+      gateway_status: w.status ?? "processing",
+    }).eq("id", tx.id);
+    log("payout:created", { txId: tx.id, gatewayId, status: w.status });
+
+    // Best-effort polling: try to confirm completion within a few seconds.
+    let finalStatus: string = w.status ?? "processing";
+    if (gatewayId) {
+      for (let i = 0; i < 3; i++) {
+        await sleep(1500 * (i + 1));
+        const poll = await fetchWithRetry(
+          `${NBPAY_BASE}/transactions/${gatewayId}`,
+          { headers: authHeaders() },
+          "payout:poll",
+          2,
+        );
+        if (!poll.ok) continue;
+        const remote = poll.body?.data ?? poll.body?.withdrawal ?? poll.body ?? {};
+        const status = String(remote.status ?? "");
+        if (!status) continue;
+        finalStatus = status;
+        let local: string | null = null;
+        if (status === "completed" || status === "paid") local = "paid";
+        else if (status === "failed" || status === "cancelled" || status === "expired") local = "rejected";
+        await supabaseAdmin.from("wallet_transactions").update({
+          gateway_status: status,
+          ...(local ? { status: local } : {}),
+          updated_at: new Date().toISOString(),
+        }).eq("id", tx.id);
+        log("payout:poll-update", { txId: tx.id, status, local });
+        if (local) break;
+      }
+    }
+
+    return { ok: true, status: finalStatus, txId: tx.id };
   });
 
 export const refreshPayoutStatus = createServerFn({ method: "POST" })
@@ -171,17 +213,22 @@ export const refreshPayoutStatus = createServerFn({ method: "POST" })
     if (!tx || tx.user_id !== context.userId) return { ok: false, error: "Não encontrado" };
     if (!tx.gateway_tx_id) return { ok: false, error: "Sem ID de gateway" };
 
-    const res = await fetch(`${NBPAY_BASE}/transactions/${tx.gateway_tx_id}`, { headers: authHeaders() });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, error: `NBPay ${res.status}` };
-    const remote = body.data ?? body.withdrawal ?? body;
-    const status = remote.status ?? "unknown";
+    const r = await fetchWithRetry(
+      `${NBPAY_BASE}/transactions/${tx.gateway_tx_id}`,
+      { headers: authHeaders() },
+      "refresh",
+      3,
+    );
+    if (!r.ok) return { ok: false, error: r.error ?? `NBPay ${r.status}` };
+    const remote = r.body?.data ?? r.body?.withdrawal ?? r.body ?? {};
+    const status = String(remote.status ?? "unknown");
     let localStatus = tx.status;
     if (status === "completed" || status === "paid") localStatus = "paid";
     else if (status === "failed" || status === "cancelled" || status === "expired") localStatus = "rejected";
     await supabaseAdmin.from("wallet_transactions")
       .update({ gateway_status: status, status: localStatus, updated_at: new Date().toISOString() })
       .eq("id", tx.id);
+    log("refresh", { txId: tx.id, status, localStatus });
     return { ok: true, status, localStatus };
   });
 
