@@ -52,7 +52,7 @@ function Dashboard() {
       const likes = (myArticles ?? []).reduce((s, a) => s + (a.likes_count ?? 0), 0);
       setStats({ articles: articles ?? 0, views, likes });
       const ww: any = w ?? {};
-      setWallet({ balance: Number(ww.balance ?? 0), transactions: Array.isArray(ww.transactions) ? ww.transactions : [] });
+      setWallet({ balance: Number(ww.balance ?? 0), nbpayBalance: Number(ww.nbpayBalance ?? ww.balance ?? 0), transactions: Array.isArray(ww.transactions) ? ww.transactions : [] });
     } catch (e: any) {
       if (e?.message?.includes("Sessão expirada") || e instanceof Response && e.status === 401) window.location.href = "/login";
       setFeedback({ ok: false, msg: authErrorMessage(e, "Erro ao carregar o dashboard") });
