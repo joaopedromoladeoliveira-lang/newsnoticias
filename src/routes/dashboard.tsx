@@ -25,7 +25,7 @@ type Tx = {
 function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ articles: 0, views: 0, likes: 0 });
-  const [wallet, setWallet] = useState<{ balance: number; transactions: Tx[] }>({ balance: 0, transactions: [] });
+  const [wallet, setWallet] = useState<{ balance: number; nbpayBalance: number; transactions: Tx[] }>({ balance: 0, nbpayBalance: 0, transactions: [] });
   const [userEmail, setUserEmail] = useState<string>("");
   const [pixKey, setPixKey] = useState("");
   const [amount, setAmount] = useState("50");
@@ -52,7 +52,7 @@ function Dashboard() {
       const likes = (myArticles ?? []).reduce((s, a) => s + (a.likes_count ?? 0), 0);
       setStats({ articles: articles ?? 0, views, likes });
       const ww: any = w ?? {};
-      setWallet({ balance: Number(ww.balance ?? 0), transactions: Array.isArray(ww.transactions) ? ww.transactions : [] });
+      setWallet({ balance: Number(ww.balance ?? 0), nbpayBalance: Number(ww.nbpayBalance ?? ww.balance ?? 0), transactions: Array.isArray(ww.transactions) ? ww.transactions : [] });
     } catch (e: any) {
       if (e?.message?.includes("Sessão expirada") || e instanceof Response && e.status === 401) window.location.href = "/login";
       setFeedback({ ok: false, msg: authErrorMessage(e, "Erro ao carregar o dashboard") });
@@ -112,7 +112,7 @@ function Dashboard() {
         <StatCard icon={<FileText />} label="Seus artigos" value={stats.articles.toString()} />
         <StatCard icon={<Eye />} label="Visualizações" value={stats.views.toLocaleString("pt-BR")} />
         <StatCard icon={<Heart />} label="Curtidas" value={stats.likes.toLocaleString("pt-BR")} />
-        <StatCard icon={<Wallet />} label="Saldo (R$)" value={Number(wallet?.balance ?? 0).toFixed(2)} highlight />
+        <StatCard icon={<Wallet />} label={`Saldo NBPay (R$)`} value={Number(wallet?.nbpayBalance ?? 0).toFixed(2)} highlight />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2 mb-10">
@@ -133,16 +133,17 @@ function Dashboard() {
               <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min={50} step="0.01" required
                 className="mt-1 w-full h-11 px-3 rounded-lg bg-background border border-border focus:border-primary outline-none" />
             </div>
-            <button disabled={submitting || wallet.balance < 50}
+            <button disabled={submitting || wallet.nbpayBalance < 50}
               className="inline-flex items-center justify-center gap-2 w-full h-11 rounded-full bg-gradient-ember text-primary-foreground font-semibold shadow-glow disabled:opacity-60">
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Solicitar saque
             </button>
+            <p className="text-xs text-muted-foreground">Disponível na NBPay: R$ {wallet.nbpayBalance.toFixed(2)}</p>
             {feedback && (
               <p className={`text-sm ${feedback.ok ? "text-primary" : "text-destructive"}`}>{feedback.msg}</p>
             )}
-            {wallet.balance < 50 && (
-              <p className="text-xs text-muted-foreground">Acumule pelo menos R$ 50,00 em receita para sacar.</p>
+            {wallet.nbpayBalance < 50 && (
+              <p className="text-xs text-muted-foreground">Acumule pelo menos R$ 50,00 na NBPay para sacar.</p>
             )}
           </form>
         </div>
