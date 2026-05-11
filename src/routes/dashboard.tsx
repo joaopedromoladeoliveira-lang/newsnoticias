@@ -25,7 +25,7 @@ type Tx = {
 function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ articles: 0, views: 0, likes: 0 });
-  const [wallet, setWallet] = useState<{ balance: number; transactions: Tx[] }>({ balance: 0, transactions: [] });
+  const [wallet, setWallet] = useState<{ balance: number; nbpayBalance: number; transactions: Tx[] }>({ balance: 0, nbpayBalance: 0, transactions: [] });
   const [userEmail, setUserEmail] = useState<string>("");
   const [pixKey, setPixKey] = useState("");
   const [amount, setAmount] = useState("50");
