@@ -5,6 +5,11 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const NBPAY_BASE = "https://app.nbpay.com.br/api/v1";
 
+function log(scope: string, payload: Record<string, unknown>) {
+  // eslint-disable-next-line no-console
+  console.log(`[nbpay:${scope}]`, JSON.stringify(payload));
+}
+
 function authHeaders() {
   const apiKey = process.env.NBPAY_API_KEY;
   const clientId = process.env.NBPAY_CLIENT_ID;
@@ -17,19 +22,71 @@ function authHeaders() {
   };
 }
 
-async function computeBalance(userId: string): Promise<number> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  scope: string,
+  maxAttempts = 3,
+): Promise<{ ok: boolean; status: number; body: any; error?: string }> {
+  let lastErr: any;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      const body = await res.json().catch(() => ({}));
+      log(scope, { attempt, status: res.status, ok: res.ok });
+      // Retry on 5xx / 429
+      if (!res.ok && (res.status >= 500 || res.status === 429) && attempt < maxAttempts) {
+        await sleep(500 * Math.pow(2, attempt - 1));
+        continue;
+      }
+      return { ok: res.ok, status: res.status, body };
+    } catch (e: any) {
+      lastErr = e;
+      log(scope, { attempt, error: String(e?.message ?? e) });
+      if (attempt < maxAttempts) await sleep(500 * Math.pow(2, attempt - 1));
+    }
+  }
+  return { ok: false, status: 0, body: null, error: String(lastErr?.message ?? lastErr ?? "network") };
+}
+
+async function computeNbpayBalance(userId: string): Promise<{ balance: number; nbpayOnly: number }> {
   const { data } = await supabaseAdmin
     .from("wallet_transactions")
-    .select("amount_brl, type, status")
+    .select("amount_brl, type, status, gateway_provider")
     .eq("user_id", userId);
   let bal = 0;
+  let nbpayOnly = 0;
   for (const t of data ?? []) {
     const v = Number(t.amount_brl);
+    const isNb = (t.gateway_provider ?? "nbpay") === "nbpay";
     const credit = t.type === "credit_ads" || t.type === "credit_sponsor" || t.type === "credit_views" || t.type === "adjustment";
-    if (credit && t.status === "confirmed") bal += v;
-    if (t.type === "payout_pix" && (t.status === "pending" || t.status === "confirmed" || t.status === "paid")) bal -= v;
+    if (credit && t.status === "confirmed") {
+      bal += v;
+      if (isNb) nbpayOnly += v;
+    }
+    if (t.type === "payout_pix" && (t.status === "pending" || t.status === "confirmed" || t.status === "paid")) {
+      bal -= v;
+      if (isNb) nbpayOnly -= v;
+    }
   }
-  return bal;
+  return { balance: bal, nbpayOnly };
+}
+
+const computeBalance = async (userId: string) => (await computeNbpayBalance(userId)).balance;
+
+async function fetchNbpayAccountBalance(): Promise<number | null> {
+  // Optional: query NBPay account balance to double-validate before payout.
+  try {
+    const r = await fetchWithRetry(`${NBPAY_BASE}/balance`, { headers: authHeaders() }, "balance", 2);
+    if (!r.ok) return null;
+    const b = r.body?.data ?? r.body ?? {};
+    const v = Number(b.available ?? b.balance ?? b.amount);
+    return Number.isFinite(v) ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 export const getWalletSummary = createServerFn({ method: "GET" })
