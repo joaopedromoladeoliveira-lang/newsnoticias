@@ -185,14 +185,15 @@ export const requestPixPayout = createServerFn({ method: "POST" })
         const status = String(remote.status ?? "");
         if (!status) continue;
         finalStatus = status;
-        let local: string | null = null;
+        let local: "paid" | "rejected" | null = null;
         if (status === "completed" || status === "paid") local = "paid";
         else if (status === "failed" || status === "cancelled" || status === "expired") local = "rejected";
-        await supabaseAdmin.from("wallet_transactions").update({
+        const upd: { gateway_status: string; updated_at: string; status?: "paid" | "rejected" } = {
           gateway_status: status,
-          ...(local ? { status: local } : {}),
           updated_at: new Date().toISOString(),
-        }).eq("id", tx.id);
+        };
+        if (local) upd.status = local;
+        await supabaseAdmin.from("wallet_transactions").update(upd).eq("id", tx.id);
         log("payout:poll-update", { txId: tx.id, status, local });
         if (local) break;
       }
