@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { authErrorMessage, getAuthenticatedHeaders } from "@/lib/authenticated-server-fn";
+import { updateArticleViewsAndCredit } from "@/lib/nbpay.functions";
 import { Trash2, Eye, Heart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +29,7 @@ function AdminArticles() {
   const [loading, setLoading] = useState(true);
   const [cat, setCat] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
+  const updateViewsFn = useServerFn(updateArticleViewsAndCredit);
 
   const load = async () => {
     setLoading(true);
@@ -58,29 +62,17 @@ function AdminArticles() {
 
   const saveViews = async (row: Row, newViews: number) => {
     if (!Number.isFinite(newViews) || newViews < 0) { toast.error("Valor inválido"); return; }
-    const delta = Math.floor(newViews) - row.views_count;
-    const { error } = await supabase.from("articles").update({ views_count: Math.floor(newViews) }).eq("id", row.id);
-    if (error) { toast.error(error.message); return; }
-    if (delta > 0) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const amount = delta * 2;
-        const { error: wErr } = await supabase.from("wallet_transactions").insert({
-          user_id: user.id,
-          type: "credit_views",
-          status: "confirmed",
-          amount_brl: amount,
-          description: `+${delta} views manuais • artigo ${row.id}`,
-          gateway_provider: "nbpay",
-          gateway_status: "credited",
-        });
-        if (wErr) toast.error(`Views ok, mas saldo falhou: ${wErr.message}`);
-        else toast.success(`+${delta} views • +R$ ${amount.toFixed(2)} acumulados na NBPay`);
-      }
-    } else {
-      toast.success("Views atualizadas");
+    const views = Math.floor(newViews);
+    try {
+      const { headers } = await getAuthenticatedHeaders();
+      const res = await updateViewsFn({ data: { articleId: row.id, views }, headers });
+      if (!res.ok) { toast.error(res.error ?? "Erro ao atualizar views"); return; }
+      if (res.delta > 0) toast.success(`+${res.delta} views • +R$ ${res.amount.toFixed(2)} acumulados na NBPay`);
+      else toast.success("Views atualizadas");
+      setRows((r) => r.map((x) => (x.id === row.id ? { ...x, views_count: views } : x)));
+    } catch (err) {
+      toast.error(authErrorMessage(err, "Erro ao atualizar views"));
     }
-    setRows((r) => r.map((x) => (x.id === row.id ? { ...x, views_count: Math.floor(newViews) } : x)));
   };
 
   return (
